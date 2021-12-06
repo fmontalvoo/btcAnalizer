@@ -18,13 +18,14 @@ function ctrl_c(){
 	echo -e "\n${redColor}[!] Exit... \n${endColor}"
 
 	rm ut.* 2>/dev/null
+    rm it.* 2>/dev/null 
 	tput cnorm; exit 1
 }
 
 # Variables globales
 unconfirmed_transactions="https://www.blockchain.com/es/btc/unconfirmed-transactions"
-inspect_tracsaction_url="https://www.blockchain.com/es/btc/tx/"
-inspect_address_url="https://www.blockchain.com/es/btc/address/"
+inspect_tracsaction_url="https://www.blockchain.com/es/btc/tx"
+inspect_address_url="https://www.blockchain.com/es/btc/address"
 
 function printTable(){
     local -r delimiter="${1}"
@@ -117,6 +118,7 @@ function helpPanel(){
 	echo -e "\t\t${purpleColor}inspect${endColor}${yellowColor}:\t\t\t Inspeccionar hash de transacción${endColor}"
 	echo -e "\t\t${purpleColor}address${endColor}${yellowColor}:\t\t\t Inspeccionar dirección de transacción${endColor}"
 	echo -e "\n\t${grayColor}[-n]${endColor}${yellowColor} Limita el número de resultados${endColor}\n"
+	echo -e "\n\t${grayColor}[-i]${endColor}${yellowColor} Requiere hash de transacción${endColor}\n"
 	echo -e "\n\t${grayColor}[-h]${endColor}${yellowColor} Mostrar ayuda${endColor}\n"
 
 	tput cnorm; exit 1
@@ -132,29 +134,29 @@ function unconfirmedTransactions(){
 
 	hashes=$(cat ut.tmp | grep 'Hash' -A 1 | grep -v -E "Hash|\--|Tiempo" | head -n $number_output)
 
-	echo 'Hash_Cantidad_Bitcoin_Tiempo' > ut.table
+	echo 'Hash_Cantidad_Bitcoin_Tiempo' > ut.table.tmp
 
 	for hash in $hashes; do
 		cantidad=$(cat ut.tmp | grep "$hash" -A 6 | tail -1)
 		bitcoin=$(cat ut.tmp | grep "$hash" -A 4 | tail -1)
 		tiempo=$(cat ut.tmp | grep "$hash" -A 2 | tail -1)
-		echo "${hash}_\$${cantidad::-5}_${bitcoin}_${tiempo}" >> ut.table
+		echo "${hash}_\$${cantidad::-5}_${bitcoin}_${tiempo}" >> ut.table.tmp
 	done
 
-    cat ut.table | tr '_' ' ' | awk '{print $2}' | grep -v 'Cantidad' | tr -d '$' | sed 's/\,.*//g' | tr -d '.' > ut.total
-    total=0; cat ut.total | while read total_in_line; do
+    cat ut.table.tmp | tr '_' ' ' | awk '{print $2}' | grep -v 'Cantidad' | tr -d '$' | sed 's/\,.*//g' | tr -d '.' > ut.total.tmp
+    total=0; cat ut.total.tmp | while read total_in_line; do
         let total+=$total_in_line
-        echo $total > ut.total.sum
+        echo $total > ut.total.sum.tmp
     done
 
-    echo "Catidad total_\$$(printf "%'.d\n" $(cat ut.total.sum))" > ut.total.table
+    echo "Catidad total_\$$(printf "%'.d\n" $(cat ut.total.sum.tmp))" > ut.total.table.tmp
 
-    if [ "$(cat ut.table | wc -l)" != "1" ]; then
+    if [ "$(cat ut.table.tmp | wc -l)" != "1" ]; then
         echo -ne "${blueColor}"
-        printTable '_' "$(cat ut.table)"
+        printTable '_' "$(cat ut.table.tmp)"
         echo -ne "${endColor}"
         echo -ne "${redColor}"
-        printTable '_' "$(cat ut.total.table)"
+        printTable '_' "$(cat ut.total.table.tmp)"
         echo -ne "${endColor}"
         rm ut.* 2>/dev/null
         tput cnorm; exit 0
@@ -164,12 +166,53 @@ function unconfirmedTransactions(){
 	tput cnorm; exit 1
 }
 
+function inspectTransaction(){
+    inspect_tracsaction_hash=$1
+
+    echo "Entradas totales_Gastos totales" > it.total_in_out.tmp
+
+    while [ "$(cat it.total_in_out.tmp | wc -l)" == "1" ]; do
+        curl -s "${inspect_tracsaction_url}/${inspect_tracsaction_hash}" | html2text | grep -E 'Entradas totales|Gastos totales' -A 1 \
+         | grep -v -E 'Entradas totales|Gastos totales' | xargs | tr ' ' '_' | sed 's/_BTC/ BTC/g' >> it.total_in_out.tmp
+    done
+    
+    echo -ne "${greenColor}"
+    printTable '_' "$(cat it.total_in_out.tmp)"
+    echo -ne "${endColor}"
+
+    echo "Dirección (Entradas)_Valor" > it.inputs.tmp
+    while [ "$(cat it.inputs.tmp | wc -l)" == "1" ]; do
+        curl -s "${inspect_tracsaction_url}/${inspect_tracsaction_hash}" | html2text | grep 'Entradas' -A 50 \
+         | grep 'Gastos' -B 50 | grep 'Direcci' -A 3 | grep -v -E 'Direcci|Valor|\--' | awk 'NR%2{printf "%s ",$0;next;}1' \
+         | awk '{print $1 "_" $2 " " $3}' >> it.inputs.tmp
+    done
+
+    echo -ne "${blueColor}"
+    printTable '_' "$(cat it.inputs.tmp)"
+    echo -ne "${endColor}"
+
+     echo "Dirección (Gastos)_Valor" > it.outputs.tmp
+    while [ "$(cat it.outputs.tmp | wc -l)" == "1" ]; do
+        curl -s "${inspect_tracsaction_url}/${inspect_tracsaction_hash}" | html2text | grep 'Gastos' -A 50 \
+         | grep 'Ya lo has pensado' -B 50 | grep 'Direcci' -A 3 | grep -v -E 'Direcci|Valor|\--' | awk 'NR%2{printf "%s ",$0;next;}1' \
+         | awk '{print $1 "_" $2 " " $3}' >> it.outputs.tmp
+    done
+
+    echo -ne "${redColor}"
+    printTable '_' "$(cat it.outputs.tmp)"
+    echo -ne "${endColor}"
+
+    rm it.* 2>/dev/null
+	tput cnorm; exit 0
+}
+
 args_counter=0
-while getopts "e:n:h:" arg; do
+while getopts "e:n:i:h:" arg; do
 
 	case $arg in
 		e) exploration_mode=$OPTARG; let args_counter+=1;;
 		n) number_output=$OPTARG; let args_counter+=1;;
+		i) inspect_tracsaction=$OPTARG; let args_counter+=1;;
 		h) helpPanel;;
 	esac
 
@@ -185,5 +228,7 @@ else
         else
             unconfirmedTransactions $number_output
         fi
-	fi
+	elif [ "$(echo $exploration_mode)" == "inspect" ]; then
+        inspectTransaction $inspect_tracsaction
+    fi
 fi
