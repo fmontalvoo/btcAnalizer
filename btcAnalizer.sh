@@ -116,6 +116,7 @@ function helpPanel(){
 	echo -e "\t\t${purpleColor}unconfirmed_transactions${endColor}${yellowColor}:\t Listar transacciones no confirmadas${endColor}"
 	echo -e "\t\t${purpleColor}inspect${endColor}${yellowColor}:\t\t\t Inspeccionar hash de transacción${endColor}"
 	echo -e "\t\t${purpleColor}address${endColor}${yellowColor}:\t\t\t Inspeccionar dirección de transacción${endColor}"
+	echo -e "\n\t${grayColor}[-n]${endColor}${yellowColor} Limita el número de resultados${endColor}\n"
 	echo -e "\n\t${grayColor}[-h]${endColor}${yellowColor} Mostrar ayuda${endColor}\n"
 
 	tput cnorm; exit 1
@@ -123,12 +124,13 @@ function helpPanel(){
 
 
 function unconfirmedTransactions(){
+    number_output=$1
 	echo '' > ut.tmp
 	while [ "$(cat ut.tmp | wc -l)" == "1" ]; do
 		curl -s "$unconfirmed_transactions" | html2text > ut.tmp
 	done
 
-	hashes=$(cat ut.tmp | grep 'Hash' -A 1 | grep -v -E "Hash|\--|Tiempo")
+	hashes=$(cat ut.tmp | grep 'Hash' -A 1 | grep -v -E "Hash|\--|Tiempo" | head -n $number_output)
 
 	echo 'Hash_Cantidad_Bitcoin_Tiempo' > ut.table
 
@@ -141,14 +143,16 @@ function unconfirmedTransactions(){
 
 	printTable '_' "$(cat ut.table)"
 
+    rm ut.t* 2>/dev/null
 	tput cnorm
 }
 
 args_counter=0
-while getopts "e:h:" arg; do
+while getopts "e:n:h:" arg; do
 
 	case $arg in
 		e) exploration_mode=$OPTARG; let args_counter+=1;;
+		n) number_output=$OPTARG; let args_counter+=1;;
 		h) helpPanel;;
 	esac
 
@@ -158,6 +162,11 @@ if [ $args_counter -eq 0 ]; then
 	helpPanel
 else
 	if [ "$(echo $exploration_mode)" == "unconfirmed_transactions" ]; then
-		unconfirmedTransactions
+		if [ ! "$number_output" ]; then
+            number_output=100
+            unconfirmedTransactions $number_output
+        else
+            unconfirmedTransactions $number_output
+        fi
 	fi
 fi
