@@ -17,7 +17,7 @@ trap ctrl_c INT # Activa una funcion cuando se presiona ctrl + c
 function ctrl_c(){
 	echo -e "\n${redColor}[!] Exit... \n${endColor}"
 
-	rm ut.t* 2>/dev/null
+	rm ut.* 2>/dev/null
 	tput cnorm; exit 1
 }
 
@@ -141,10 +141,27 @@ function unconfirmedTransactions(){
 		echo "${hash}_\$${cantidad::-5}_${bitcoin}_${tiempo}" >> ut.table
 	done
 
-	printTable '_' "$(cat ut.table)"
+    cat ut.table | tr '_' ' ' | awk '{print $2}' | grep -v 'Cantidad' | tr -d '$' | sed 's/\,.*//g' | tr -d '.' > ut.total
+    total=0; cat ut.total | while read total_in_line; do
+        let total+=$total_in_line
+        echo $total > ut.total.sum
+    done
 
-    rm ut.t* 2>/dev/null
-	tput cnorm
+    echo "Catidad total_\$$(printf "%'.d\n" $(cat ut.total.sum))" > ut.total.table
+
+    if [ "$(cat ut.table | wc -l)" != "1" ]; then
+        echo -ne "${blueColor}"
+        printTable '_' "$(cat ut.table)"
+        echo -ne "${endColor}"
+        echo -ne "${redColor}"
+        printTable '_' "$(cat ut.total.table)"
+        echo -ne "${endColor}"
+        rm ut.* 2>/dev/null
+        tput cnorm; exit 0
+    fi
+    
+    rm ut.* 2>/dev/null
+	tput cnorm; exit 1
 }
 
 args_counter=0
