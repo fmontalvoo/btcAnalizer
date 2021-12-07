@@ -112,7 +112,7 @@ function trimString(){
 }
 
 function helpPanel(){
-	echo -e "\n${yellowColo}[i] Uso: ./btcAnalyzer${endColor}"
+	echo -e "\n${yellowColor}[i] Uso: ./btcAnalyzer${endColor}"
 	for i in $(seq 1 100); do echo -ne "${blueColor}="; done; echo -ne "${endColor}"
 	echo -e "\n\n\t${grayColor}[-e]${endColor}${yellowColor} Modo exploración${endColor}"
 	echo -e "\t\t${purpleColor}unconfirmed_transactions${endColor}${yellowColor}:\t Listar transacciones no confirmadas${endColor}"
