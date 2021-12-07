@@ -3,7 +3,7 @@
 Para utilizar esta herramienta es necesario instalar estas utilidades:
 
 ```bash
-    apt-get install html2text bc -y
+apt-get install html2text bc -y
 ```
 
 ## Capturas
