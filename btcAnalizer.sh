@@ -236,8 +236,8 @@ function inspectAddress(){
      | grep -v -E 'Total recibido|Total enviado|Saldo final|\--' > ia.btc_to_usd.tmp
 
     cat ia.btc_to_usd.tmp | while read value; do
-        btc=$(echo $value | awk '{print $1}' | sed 's/\./\,/') 
-        echo "\$$(printf "%'.d\n" $(echo $(($btc*$bitcoin_value)) | bc) 2>/dev/null)" >> ia.information.tmp
+        btc=$(echo $value | awk '{print $1}')
+        echo "\$$(printf "%'.d\n" $(echo "$btc*$bitcoin_value" | bc) 2>/dev/null)" >> ia.information.tmp
     done
 
     line_none=$(cat ia.information.tmp | grep -n "^\$$" | awk '{print $1}' FS=":")
